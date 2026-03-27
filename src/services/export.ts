@@ -133,23 +133,47 @@ export const exportService = {
   },
 
   exportToMarkdown(memo: Memo): void {
-    // Convert HTML content to Markdown-like text for export
-    const content = memo.content
-      .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n')
-      .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n')
-      .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n')
-      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
-      .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
-      .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
-      .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
-      .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
-      .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&nbsp;/g, ' ');
+    // Use DOM-based conversion to safely handle HTML entities and avoid injection
+    const tmp = document.createElement('div');
+    tmp.innerHTML = memo.content;
 
+    const convertNode = (node: Node): string => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent ?? '';
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+      const el = node as Element;
+      const tag = el.tagName.toLowerCase();
+      const children = Array.from(el.childNodes).map(convertNode).join('');
+
+      switch (tag) {
+        case 'h1': return `# ${children}\n\n`;
+        case 'h2': return `## ${children}\n\n`;
+        case 'h3': return `### ${children}\n\n`;
+        case 'h4': case 'h5': case 'h6': return `#### ${children}\n\n`;
+        case 'strong': case 'b': return `**${children}**`;
+        case 'em': case 'i': return `*${children}*`;
+        case 'u': return `_${children}_`;
+        case 's': case 'del': return `~~${children}~~`;
+        case 'code': return `\`${children}\``;
+        case 'pre': return `\`\`\`\n${children}\n\`\`\`\n\n`;
+        case 'blockquote': return children.split('\n').map((l) => `> ${l}`).join('\n') + '\n\n';
+        case 'li': return `- ${children}\n`;
+        case 'ul': case 'ol': return `${children}\n`;
+        case 'p': return `${children}\n\n`;
+        case 'br': return '\n';
+        case 'hr': return '\n---\n\n';
+        case 'a': return `[${children}](${el.getAttribute('href') ?? ''})`;
+        case 'img': return `![${el.getAttribute('alt') ?? ''}](${el.getAttribute('src') ?? ''})`;
+        case 'table': return `${children}\n`;
+        case 'tr': return `| ${children} |\n`;
+        case 'th': case 'td': return `${children} |`;
+        default: return children;
+      }
+    };
+
+    const content = Array.from(tmp.childNodes).map(convertNode).join('').trim();
     const markdown = `# ${memo.title}\n\n${content}`;
     const blob = new Blob([markdown], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);

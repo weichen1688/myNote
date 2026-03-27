@@ -10,7 +10,7 @@ interface SearchPanelProps {
 
 function highlight(text: string, query: string): string {
   if (!query) return text;
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escaped = query.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
   return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
 }
 

@@ -80,7 +80,7 @@ export default function EditorPane({ memo, onUpdate }: EditorPaneProps) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
         onUpdate({ content: html, rawContent: text });
-      }, 800);
+      }, 500);
     },
   });
 
