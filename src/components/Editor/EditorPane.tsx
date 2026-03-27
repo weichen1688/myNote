@@ -90,6 +90,7 @@ export default function EditorPane({ memo, onUpdate }: EditorPaneProps) {
     if (lastSavedId.current === memo.id) return;
     lastSavedId.current = memo.id;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTitle(memo.title);
     setTags(memo.tags);
 

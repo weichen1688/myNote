@@ -25,6 +25,7 @@ function App() {
   // Load memos on mount
   useEffect(() => {
     const memos = storageService.getAllMemos();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((s) => ({ ...s, memos }));
     if (memos.length > 0) {
       setSelectedMemo(memos[0]);

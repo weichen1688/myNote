@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "electron/main.cjs",
+  "description": "A smart note-taking app with knowledge graph and AI chat",
+  "author": {
+    "name": "myNote",
+    "email": "mynote@example.com"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -10,7 +16,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --max-warnings 0",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron electron/main.cjs\"",
     "electron:build": "npm run build && electron-builder"
   },
@@ -67,16 +73,24 @@
     "electron": "^35.1.2",
     "electron-builder": "^25.1.8",
     "eslint": "^9.19.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
     "jsdom": "^29.0.1",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.57.2",
     "vite": "^6.2.6",
     "vitest": "^4.1.2",
     "wait-on": "^8.0.3"
   },
   "build": {
     "appId": "com.mynote.app",
+    "publish": null,
     "mac": {
       "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
     },
     "files": [
       "dist/**/*",

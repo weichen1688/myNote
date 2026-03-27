@@ -1,4 +1,3 @@
-import type { Editor } from '@tiptap/react';
 import {
   Bold, Italic, Underline, Strikethrough, Code, Link2,
   List, ListOrdered, CheckSquare, Quote,

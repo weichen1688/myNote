@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
 import type { Memo } from '../../types';
-import type { KnowledgeNode, KnowledgeLink } from '../../types';
+import type { KnowledgeNode } from '../../types';
 import { buildGraphData } from '../../utils/graphUtils';
 import './KnowledgeGraph.css';
 
