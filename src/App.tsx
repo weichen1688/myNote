@@ -25,12 +25,10 @@ function App() {
   // Load memos on mount
   useEffect(() => {
     const memos = storageService.getAllMemos();
+    const firstMemo = memos.length > 0 ? memos[0] : null;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((s) => ({ ...s, memos }));
-    if (memos.length > 0) {
-      setSelectedMemo(memos[0]);
-      setState((s) => ({ ...s, memos, selectedMemoId: memos[0].id }));
-    }
+    if (firstMemo) setSelectedMemo(firstMemo);
+    setState((s) => ({ ...s, memos, selectedMemoId: firstMemo?.id ?? null }));
   }, []);
 
   const handleSelectMemo = useCallback((memo: Memo) => {

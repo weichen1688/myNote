@@ -216,6 +216,30 @@ describe('exportService.exportToMarkdown – document structure', () => {
   });
 });
 
+describe('exportService.exportToMarkdown – tables', () => {
+  it('converts a simple table with header and data rows', async () => {
+    const content = `
+      <table>
+        <tr><th>Name</th><th>Value</th></tr>
+        <tr><td>Alpha</td><td>1</td></tr>
+        <tr><td>Beta</td><td>2</td></tr>
+      </table>
+    `;
+    const md = await getMarkdown(makeMemo({ content }));
+    expect(md).toContain('| Name | Value |');
+    expect(md).toContain('| Alpha | 1 |');
+    expect(md).toContain('| Beta | 2 |');
+  });
+
+  it('each row ends with a single | and does not produce double ||', async () => {
+    const content = '<table><tr><td>A</td><td>B</td></tr></table>';
+    const md = await getMarkdown(makeMemo({ content }));
+    // Should not contain a "| |" pattern (the old double-pipe bug)
+    expect(md).not.toMatch(/\| \|/);
+    expect(md).toContain('| A | B |');
+  });
+});
+
 describe('exportService.exportToMarkdown – complex mixed content', () => {
   it('converts a realistic note with multiple elements', async () => {
     const content = `
