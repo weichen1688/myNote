@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
 import type { Memo } from '../../types';
 import type { KnowledgeNode, KnowledgeLink } from '../../types';
+import { buildGraphData } from '../../utils/graphUtils';
 import './KnowledgeGraph.css';
 
 interface KnowledgeGraphProps {
@@ -24,36 +25,7 @@ export default function KnowledgeGraph({ memos, selectedMemoId, onSelectMemo }: 
   const containerRef = useRef<HTMLDivElement>(null);
 
   const buildGraph = useCallback((): { nodes: SimNode[]; links: SimLink[] } => {
-    const nodes: SimNode[] = memos.map((m) => ({
-      id: m.id,
-      label: m.title || 'Untitled',
-      group: m.tags[0] || 'default',
-      size: Math.max(8, Math.min(22, 8 + m.rawContent.length / 100)),
-    }));
-
-    const links: SimLink[] = [];
-    const memoMap = new Map(memos.map((m) => [m.id, m]));
-
-    // Create links from explicit memo.links
-    memos.forEach((memo) => {
-      memo.links.forEach((targetId) => {
-        if (memoMap.has(targetId)) {
-          links.push({ source: memo.id, target: targetId, strength: 0.8 });
-        }
-      });
-    });
-
-    // Create links from shared tags
-    for (let i = 0; i < memos.length; i++) {
-      for (let j = i + 1; j < memos.length; j++) {
-        const sharedTags = memos[i].tags.filter((t) => memos[j].tags.includes(t));
-        if (sharedTags.length > 0) {
-          links.push({ source: memos[i].id, target: memos[j].id, strength: 0.3 * sharedTags.length });
-        }
-      }
-    }
-
-    return { nodes, links };
+    return buildGraphData(memos) as { nodes: SimNode[]; links: SimLink[] };
   }, [memos]);
 
   useEffect(() => {
