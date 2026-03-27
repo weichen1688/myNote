@@ -1,23 +1,5 @@
 # ✦ myNote – AI-Powered Knowledge Base
 
-A modern note-taking app combining the best of **Notion** and **Obsidian** with an integrated **AI Copilot** — available as both a **web app** and a **macOS native app** (via Electron).
-
-## ✨ Features
-
-| Feature | Description |
-|---------|-------------|
-| 📝 **Rich Text Editor** | TipTap-powered editor with full Markdown support, HTML rendering, tables, and code blocks with syntax highlighting |
-| 🔢 **LaTeX Math** | Inline `$...$` and block `$$...$$` math equations rendered with KaTeX |
-| 🖼️ **Media Support** | Embed images, MP4 videos, and other media via drag & drop or URL |
-| 🤖 **AI Copilot** | OpenAI-powered chat assistant with streaming responses, note summarization, and cross-memo analysis |
-| 🕸️ **Knowledge Graph** | D3.js-powered interactive graph showing connections between notes (via tags and explicit links) |
-| 🔍 **Full-Text Search** | Instant search across all notes with highlighted matches |
-| 📄 **PDF Export** | Export any note to PDF using html2canvas + jsPDF |
-| 🖨️ **Print** | Native print functionality with clean print styles |
-| 📥 **Markdown Export** | Export notes as `.md` files |
-| 🏷️ **Tags** | Organize notes with tags; AI can auto-generate tags |
-| 💾 **Local Storage** | All data stored locally in the browser (IndexedDB/localStorage) |
-| 🖥️ **macOS Native App** | Electron wrapper with native menu bar, keyboard shortcuts, and window chrome |
 
 ## 🚀 Getting Started
 
