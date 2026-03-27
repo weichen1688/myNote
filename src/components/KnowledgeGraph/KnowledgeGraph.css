@@ -1,0 +1,55 @@
+.knowledge-graph {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-primary);
+  position: relative;
+}
+
+.graph-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.graph-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.graph-stats {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.graph-svg {
+  flex: 1;
+  width: 100%;
+  display: block;
+}
+
+.graph-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.graph-hint {
+  padding: 8px 18px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  border-top: 1px solid var(--border-color);
+}
+
+.graph-node-group:hover circle {
+  opacity: 1;
+  filter: brightness(1.2);
+}
