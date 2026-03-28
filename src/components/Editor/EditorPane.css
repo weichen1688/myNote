@@ -130,3 +130,29 @@
 .editor-content {
   flex: 1;
 }
+
+/* ─── Tablet (768px – 1023px) ─────────────────────────────── */
+@media (max-width: 1023px) {
+  .editor-meta {
+    padding: 20px 24px 0;
+  }
+
+  .editor-title-input {
+    font-size: 24px;
+  }
+}
+
+/* ─── Mobile (≤ 767px) ────────────────────────────────────── */
+@media (max-width: 767px) {
+  .editor-meta {
+    padding: 14px 16px 0;
+  }
+
+  .editor-title-input {
+    font-size: 20px;
+  }
+
+  .editor-empty-content {
+    padding: 24px 16px;
+  }
+}

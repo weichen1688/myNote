@@ -13,7 +13,7 @@ function App() {
   const [state, setState] = useState<AppState>({
     memos: [],
     selectedMemoId: null,
-    sidebarOpen: true,
+    sidebarOpen: typeof window !== 'undefined' && window.innerWidth >= 768,
     aiPanelOpen: false,
     graphPanelOpen: false,
     searchQuery: '',
@@ -89,8 +89,16 @@ function App() {
   const toggleSearch = () =>
     setState((s) => ({ ...s, view: s.view === 'search' ? 'editor' : 'search', graphPanelOpen: false }));
 
+  const closePanels = () =>
+    setState((s) => ({ ...s, sidebarOpen: false, aiPanelOpen: false }));
+
   return (
     <div className="app-layout">
+      {/* Mobile overlay backdrop */}
+      {(state.sidebarOpen || state.aiPanelOpen) && (
+        <div className="panel-backdrop" onClick={closePanels} aria-hidden="true" />
+      )}
+
       {/* Header */}
       <header className="app-header">
         <div className="header-left">

@@ -270,3 +270,23 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ─── Tablet (768px – 1023px): narrow AI panel ─────────────── */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .ai-panel {
+    width: 300px;
+  }
+}
+
+/* ─── Mobile (≤ 767px): AI panel becomes a full-width fixed overlay */
+@media (max-width: 767px) {
+  .ai-panel {
+    position: fixed;
+    top: var(--header-height);
+    right: 0;
+    height: calc(100vh - var(--header-height));
+    width: 100vw;
+    z-index: var(--z-index-overlay);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+  }
+}
