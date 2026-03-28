@@ -1,0 +1,334 @@
+myNote — 博士級 Code Review 報告
+日期：2026-03-28
+審閱者：Claude (PhD-level Expert Review)
+===========================================================
+
+## 執行摘要
+
+總體架構清晰，技術選型合理（TipTap + D3 + OpenAI Streaming），但存在
+3 個嚴重安全漏洞、多個 state 設計缺陷、性能隱患與架構問題，需優先修復。
+
+
+===========================================================
+## 一、嚴重安全漏洞 (Critical)
+===========================================================
+
+### [CRITICAL] Issue #1 — XSS：MessageText 的 dangerouslySetInnerHTML 未消毒
+位置: src/components/AIChat/AIChat.tsx:239-244
+
+問題描述:
+  dangerouslySetInnerHTML 直接使用 AI 回應文字（未做 HTML 轉義），
+  若 AI 回應中含有 <script>alert(1)</script> 或 prompt injection 注入惡意 HTML，
+  任何 JavaScript 皆可在用戶 DOM 執行。正規表達式不做 HTML 轉義，
+  攻擊者可透過 prompt injection 在 AI 回應中嵌入任意 HTML。
+
+問題程式碼:
+  const rendered = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,  '<em>$1</em>')
+    .replace(/`(.*?)`/g,   '<code>$1</code>')
+    .replace(/\n/g,        '<br>');
+  return <div dangerouslySetInnerHTML={{ __html: rendered }} />;
+
+修復方向:
+  使用 react-markdown 替代 dangerouslySetInnerHTML（專案已安裝），
+  或在執行 Markdown 替換前，先對原始 text 進行 HTML entity 轉義
+  （escape <, >, &, "），再做 Markdown 替換。
+
+---
+
+### [CRITICAL] Issue #2 — XSS：printMemo 未轉義用戶資料
+位置: src/services/export.ts:104-131
+
+問題描述:
+  memo.title 與 memo.tags 直接插值進 document.write 的 HTML 字串，
+  未做任何轉義。在 Electron 環境下危害尤為嚴重（可存取 Node.js API）。
+
+問題程式碼:
+  printWindow.document.write(`
+    <div class="print-title">${memo.title}</div>   // 直接插入
+    Tags: ${memo.tags.join(', ')}                   // 直接插入
+    ${element.innerHTML}                            // 直接插入
+  `);
+
+修復方向:
+  實作 escapeHtml() helper，對 <, >, &, ", ' 做 HTML entity 轉義後再插值。
+
+---
+
+### [CRITICAL] Issue #3 — HTML 注入：Video URL 未消毒
+位置: src/components/Editor/EditorPane.tsx:138
+
+問題描述:
+  url 直接拼接進 HTML 字串再插入編輯器，若 url 為惡意字串
+  例如 "><script>alert(1)</script><source src="，
+  可直接注入 DOM 結構。
+
+問題程式碼:
+  editor.chain().focus().insertContent(
+    `<p><video controls><source src="${url}"></video></p>`
+  ).run();
+
+修復方向:
+  使用 TipTap 的 attribute 設置方法，而非字串拼接 HTML，
+  或在拼接前對 url 做嚴格驗證（限制 https:// 協定）。
+
+
+===========================================================
+## 二、State 設計缺陷 (High)
+===========================================================
+
+### [HIGH] Issue #4 — 狀態雙重來源 (Dual Source of Truth)
+位置: src/App.tsx:13-23
+
+問題描述:
+  selectedMemoId（在 AppState 中）與 selectedMemo（獨立 useState）
+  是同一事實的兩種表述，每次操作都需同步更新兩者，是典型 inconsistency 來源。
+
+問題程式碼:
+  const [state, setState] = useState<AppState>({
+    selectedMemoId: null, // ID 在 AppState
+    ...
+  });
+  const [selectedMemo, setSelectedMemo] = useState<Memo | null>(null); // 又存完整物件
+
+修復方向:
+  只保留 selectedMemoId，用 useMemo 派生 selectedMemo：
+  const selectedMemo = useMemo(
+    () => state.memos.find(m => m.id === state.selectedMemoId) ?? null,
+    [state.memos, state.selectedMemoId]
+  );
+
+---
+
+### [HIGH] Issue #5 — 死碼：searchQuery 在 AppState 中
+位置: src/types/index.ts:52、src/App.tsx:20
+
+問題描述:
+  AppState.searchQuery 宣告並初始化為 ''，但整個應用中沒有任何地方使用。
+  SearchPanel 使用自己內部的 state，這是設計意圖未落地的殘留。
+
+---
+
+### [HIGH] Issue #6 — 重複 setState 呼叫
+位置: src/App.tsx:26-34
+
+問題描述:
+  useEffect 中第一個 setState 是多餘的；
+  若有 memos，第二個 setState 已涵蓋第一個，造成不必要的兩次 re-render。
+
+問題程式碼:
+  setState((s) => ({ ...s, memos }));                              // 第一次（多餘）
+  setState((s) => ({ ...s, memos, selectedMemoId: memos[0].id })); // 第二次（已涵蓋）
+
+---
+
+### [HIGH] Issue #7 — 未清理的 setTimeout（Memory Leak）
+位置: src/components/Editor/EditorPane.tsx:80-83
+
+問題描述:
+  組件卸載時若 saveTimer 尚未觸發，會在 unmounted 組件上呼叫 onUpdate，
+  觸發 React 警告並可能造成 stale closure 的資料更新。
+  應在 useEffect return 中執行 clearTimeout。
+
+
+===========================================================
+## 三、性能問題 (Medium)
+===========================================================
+
+### [MEDIUM] Issue #8 — O(n²·k) 標籤比較算法
+位置: src/utils/graphUtils.ts:48-59
+
+問題描述:
+  Array.includes 是線性搜尋，整體複雜度 O(n²·k)。
+  對 1000 個 memos 每個有 5 個 tags，就是 250 萬次操作。
+
+問題程式碼:
+  for (let i = 0; i < memos.length; i++) {
+    for (let j = i + 1; j < memos.length; j++) {
+      const sharedTags = memos[i].tags.filter(
+        (t) => memos[j].tags.includes(t)  // O(k) 線性搜尋
+      );
+    }
+  }
+
+修復方向:
+  將每個 memo 的 tags 轉為 Set，降至 O(n²)：
+  const tagSets = memos.map(m => new Set(m.tags));
+  const sharedCount = [...tagSets[i]].filter(t => tagSets[j].has(t)).length;
+
+---
+
+### [MEDIUM] Issue #9 — createLowlight(all) 載入全部語言
+位置: src/components/Editor/EditorPane.tsx:21,29
+
+問題描述:
+  lowlight 的 all 包含超過 190 種語言的語法定義，
+  大幅增加 bundle 大小（未壓縮約 1MB+）。
+
+問題程式碼:
+  import { all, createLowlight } from 'lowlight'; // 載入 190+ 語言
+  const lowlight = createLowlight(all);
+
+修復方向:
+  按需載入常用語言：
+  import { createLowlight } from 'lowlight';
+  import javascript from 'highlight.js/lib/languages/javascript';
+  const lowlight = createLowlight({ javascript, typescript, python, ... });
+
+---
+
+### [MEDIUM] Issue #10 — getConfig() 每次 render 讀取 localStorage
+位置: src/components/AIChat/AIChat.tsx:30-31
+
+問題描述:
+  在 render 函數頂層同步執行（非 hook），
+  每次 AIChat 組件 render 都會同步讀取 localStorage。
+  應改為 useState + 訂閱 config 變化。
+
+
+===========================================================
+## 四、功能正確性問題 (Medium)
+===========================================================
+
+### [MEDIUM] Issue #11 — Markdown Export：<u> 映射語義錯誤
+位置: src/services/export.ts:158
+
+問題描述:
+  Markdown 中 _text_ 渲染為斜體，不是底線。
+  若用 <u> 標記的內容匯出成 Markdown，語義錯誤。
+
+問題程式碼:
+  case 'u': return `_${children}_`; // Markdown 底線語法是斜體，非底線
+
+修復方向:
+  Markdown 本身無標準底線語法，正確做法是保留 <u> HTML 標籤或加以說明。
+
+---
+
+### [MEDIUM] Issue #12 — Markdown 表格缺少 Header Separator
+位置: src/services/export.ts:169-171
+
+問題描述:
+  標準 GFM 表格需要 header row 後的分隔行 | --- | --- |，
+  缺少此行，所有 Markdown 解析器都不會將其渲染為表格。
+
+---
+
+### [MEDIUM] Issue #13 — AI 回應 JSON 解析缺乏驗證
+位置: src/services/ai.ts:126, 156
+
+問題描述:
+  AI 回應是不可信輸入。若模型返回 {"error": "..."} 而非陣列，
+  JSON.parse 成功但後續 .map() 會出現非預期行為。
+  應加入 Array.isArray() 與類型守衛驗證。
+
+問題程式碼:
+  const indices: number[] = JSON.parse(raw); // 未驗證是否為數字陣列
+  return JSON.parse(raw);                    // 未驗證是否為字串陣列
+
+
+===========================================================
+## 五、架構設計問題 (Medium)
+===========================================================
+
+### [MEDIUM] Issue #14 — 缺乏 React Error Boundary
+
+問題描述:
+  整個應用無任何 Error Boundary。
+  TipTap 或 D3 的任何未處理錯誤都會造成白屏，無任何降級 UI 或錯誤訊息。
+  應至少在 EditorPane、KnowledgeGraph、AIChat 外包裹 Error Boundary。
+
+---
+
+### [MEDIUM] Issue #15 — localStorage 無大小檢查（靜默失敗）
+位置: src/services/storage.ts（所有 setItem 呼叫處）
+
+問題描述:
+  Attachment.url 存儲 base64 圖片，localStorage 上限約 5MB。
+  超過後 setItem 拋出 QuotaExceededError，
+  但現有的 try/catch 只在 getItem 中使用，
+  saveMemo、updateMemo、deleteMemo 的 setItem 呼叫完全無保護。
+
+---
+
+### [MEDIUM] Issue #16 — 未實作 Request Cancellation（AI Streaming）
+位置: src/components/AIChat/AIChat.tsx:53
+
+問題描述:
+  用戶關閉 AI 面板或切換 Memo 時，正在進行的 streaming request 無法取消，
+  繼續消耗 API tokens 並對已卸載組件執行 setState。
+  應引入 AbortController 並在 useEffect cleanup 中取消。
+
+---
+
+### [MEDIUM] Issue #17 — Config 類型過於寬鬆
+位置: src/services/storage.ts:84
+
+問題描述:
+  getConfig(): Record<string, string> 使所有設定值都是 string，
+  犧牲了 TypeScript 的類型安全優勢。
+  AIConfig 介面（types/index.ts:56）已定義但未在 storageService 中使用。
+
+
+===========================================================
+## 六、程式碼風格問題 (Low)
+===========================================================
+
+### [LOW] Issue #18 — 散落的魔術數字
+位置: src/services/ai.ts
+
+問題描述:
+  以下限制值應提取為命名常數，方便調整和理解意圖：
+    .slice(0, 20)   // 最多 20 篇 memos
+    .slice(0, 500)  // 每篇截取 500 字元
+    .slice(0, 300)  // target memo 截取 300 字元
+    .slice(0, 150)  // 其他 memo 截取 150 字元
+    .slice(0, 1000) // tag generation 截取 1000 字元
+
+修復方向:
+  const MAX_MEMOS_FOR_SUMMARY = 20;
+  const SUMMARY_CONTENT_PREVIEW_LENGTH = 500;
+  // 等等...
+
+
+===========================================================
+## 功能強化建議（優先級排序）
+===========================================================
+
+P0 — 立即修復
+  [ ] 修復三個 XSS 漏洞（Issue #1, #2, #3）
+  [ ] 加入 setItem 錯誤處理與儲存空間警告（Issue #15）
+
+P1 — 高優先
+  [ ] 重構 selectedMemo 為派生狀態，消除雙重來源（Issue #4）
+  [ ] 為 AI streaming 加入 AbortController（Issue #16）
+  [ ] 加入 React Error Boundary（Issue #14）
+
+P2 — 中優先
+  [ ] 替換 dangerouslySetInnerHTML 為 react-markdown（Issue #1）
+  [ ] 修復 Markdown 匯出的表格 separator 與底線映射（Issue #11, #12）
+  [ ] 按需載入 lowlight 語言以縮減 bundle（Issue #9）
+  [ ] 清理未使用 saveTimer 的 useEffect（Issue #7）
+
+P3 — 低優先
+  [ ] 提取魔術數字為命名常數（Issue #18）
+  [ ] 為 AI 回應 JSON 加入驗證守衛（Issue #13）
+  [ ] 移除死碼 searchQuery（Issue #5）
+  [ ] 統一 Config 型別使用 AIConfig interface（Issue #17）
+
+
+===========================================================
+## 總評
+===========================================================
+
+這是一個功能完整、技術棧選擇合理的專案，代碼整體可讀性高。
+安全問題（特別是 XSS，在 Electron 環境中危害尤為嚴重）
+和狀態管理的雙重來源問題需要優先解決，
+其餘問題可在後續迭代中逐步修復。
+
+共發現問題：18 項
+  嚴重 (Critical): 3
+  高   (High):     4
+  中   (Medium):   8
+  低   (Low):      3
