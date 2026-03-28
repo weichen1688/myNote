@@ -171,3 +171,17 @@
   white-space: nowrap;
   max-width: 120px;
 }
+
+
+/* ─── Mobile (≤ 767px): sidebar becomes a fixed overlay ───── */
+@media (max-width: 767px) {
+  .sidebar {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    height: calc(100vh - var(--header-height));
+    z-index: var(--z-index-overlay);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+    width: min(var(--sidebar-width), 85vw);
+  }
+}

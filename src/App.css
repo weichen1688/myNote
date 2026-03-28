@@ -77,3 +77,33 @@
   flex-direction: column;
   background: var(--bg-primary);
 }
+
+/* Mobile overlay backdrop (hidden on desktop) */
+.panel-backdrop {
+  display: none;
+}
+
+/* ─── Tablet (768px – 1023px) ─────────────────────────────── */
+@media (max-width: 1023px) {
+  .app-header {
+    padding: 0 10px;
+  }
+}
+
+/* ─── Mobile (≤ 767px) ────────────────────────────────────── */
+@media (max-width: 767px) {
+  .app-header {
+    padding: 0 8px;
+  }
+
+  .panel-backdrop {
+    display: block;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: var(--z-index-backdrop);
+  }
+}

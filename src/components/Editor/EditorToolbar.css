@@ -52,3 +52,17 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* ─── Mobile (≤ 767px): toolbar scrolls horizontally ──────── */
+@media (max-width: 767px) {
+  .editor-toolbar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding: 4px 6px;
+    scrollbar-width: none;
+  }
+
+  .editor-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+}

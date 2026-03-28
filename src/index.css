@@ -21,6 +21,8 @@
   --ai-panel-width: 340px;
   --toolbar-height: 48px;
   --header-height: 52px;
+  --z-index-overlay: 200;
+  --z-index-backdrop: 199;
 }
 
 html, body, #root {
@@ -259,4 +261,26 @@ input, textarea {
 
 .spin {
   animation: spin 1s linear infinite;
+}
+
+/* ─── Responsive design ────────────────────────────────────── */
+
+/* Tablet: shrink panels slightly */
+@media (max-width: 1023px) {
+  :root {
+    --sidebar-width: 220px;
+    --ai-panel-width: 300px;
+  }
+}
+
+/* Mobile: reduce editor content padding */
+@media (max-width: 767px) {
+  :root {
+    --sidebar-width: 260px; /* overlay – full width allowed */
+    --ai-panel-width: 100vw; /* overlay – fills screen */
+  }
+
+  .ProseMirror {
+    padding: 16px;
+  }
 }
