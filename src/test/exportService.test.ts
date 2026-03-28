@@ -106,9 +106,9 @@ describe('exportService.exportToMarkdown – inline formatting', () => {
     expect(md).toContain('*italic text*');
   });
 
-  it('converts <u> to _underline_', async () => {
+  it('converts <u> to <u> HTML tag (Markdown has no underline syntax)', async () => {
     const md = await getMarkdown(makeMemo({ content: '<p><u>underline</u></p>' }));
-    expect(md).toContain('_underline_');
+    expect(md).toContain('<u>underline</u>');
   });
 
   it('converts <s> to ~~strikethrough~~', async () => {

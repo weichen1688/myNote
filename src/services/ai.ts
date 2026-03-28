@@ -2,6 +2,13 @@ import OpenAI from 'openai';
 import type { ChatMessage, Memo } from '../types';
 import { storageService } from './storage';
 
+// Named constants for AI context limits
+const MAX_MEMOS_FOR_SUMMARY = 20;
+const SUMMARY_CONTENT_PREVIEW_LENGTH = 500;
+const RELATED_MEMO_TARGET_PREVIEW_LENGTH = 300;
+const RELATED_MEMO_OTHER_PREVIEW_LENGTH = 150;
+const TAG_GENERATION_CONTENT_LENGTH = 1000;
+
 function getClient(): OpenAI | null {
   const config = storageService.getConfig();
   const apiKey = config['openai_api_key'];
@@ -82,8 +89,8 @@ export const aiService = {
     }
 
     const memosText = memos
-      .slice(0, 20) // limit to 20 most recent
-      .map((m, i) => `[${i + 1}] ${m.title}: ${m.rawContent.slice(0, 500)}`)
+      .slice(0, MAX_MEMOS_FOR_SUMMARY)
+      .map((m, i) => `[${i + 1}] ${m.title}: ${m.rawContent.slice(0, SUMMARY_CONTENT_PREVIEW_LENGTH)}`)
       .join('\n\n');
 
     const response = await client.chat.completions.create({
@@ -118,12 +125,18 @@ export const aiService = {
             role: 'system',
             content: 'Extract 3-5 relevant tags from the given text. Return ONLY a JSON array of lowercase strings, e.g. ["tag1","tag2","tag3"]',
           },
-          { role: 'user', content: content.slice(0, 1000) },
+          { role: 'user', content: content.slice(0, TAG_GENERATION_CONTENT_LENGTH) },
         ],
       });
 
       const raw = response.choices[0]?.message?.content ?? '[]';
-      return JSON.parse(raw);
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const tags = parsed.filter((item): item is string => typeof item === 'string');
+      if (tags.length !== parsed.length) {
+        console.warn('AI tag response contained non-string items, they were discarded:', parsed);
+      }
+      return tags;
     } catch {
       return [];
     }
@@ -141,7 +154,7 @@ export const aiService = {
     if (!targetMemo || allMemos.length < 2) return [];
 
     const otherMemos = allMemos.filter((m) => m.id !== memoId);
-    const prompt = `Target note: "${targetMemo.title}" - ${targetMemo.rawContent.slice(0, 300)}\n\nOther notes:\n${otherMemos.map((m, i) => `[${i}] ${m.title}: ${m.rawContent.slice(0, 150)}`).join('\n')}\n\nReturn a JSON array of indices (numbers) of the most related notes (max 5), e.g. [0,2,4]`;
+    const prompt = `Target note: "${targetMemo.title}" - ${targetMemo.rawContent.slice(0, RELATED_MEMO_TARGET_PREVIEW_LENGTH)}\n\nOther notes:\n${otherMemos.map((m, i) => `[${i}] ${m.title}: ${m.rawContent.slice(0, RELATED_MEMO_OTHER_PREVIEW_LENGTH)}`).join('\n')}\n\nReturn a JSON array of indices (numbers) of the most related notes (max 5), e.g. [0,2,4]`;
 
     try {
       const response = await client.chat.completions.create({
@@ -153,7 +166,12 @@ export const aiService = {
       });
 
       const raw = response.choices[0]?.message?.content ?? '[]';
-      const indices: number[] = JSON.parse(raw);
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      const indices = parsed.filter((item): item is number => typeof item === 'number');
+      if (indices.length !== parsed.length) {
+        console.warn('AI related-memos response contained non-number items, they were discarded:', parsed);
+      }
       return indices.map((i) => otherMemos[i]?.id).filter(Boolean);
     } catch {
       return [];

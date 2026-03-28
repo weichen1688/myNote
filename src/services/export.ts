@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { Memo } from '../types';
+import { escapeHtml } from '../utils/htmlUtils';
 
 export const exportService = {
   async exportToPDF(element: HTMLElement, memo: Memo): Promise<void> {
@@ -105,7 +106,7 @@ export const exportService = {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${memo.title}</title>
+          <title>${escapeHtml(memo.title)}</title>
           <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
           <style>
             ${styles}
@@ -118,10 +119,10 @@ export const exportService = {
         </head>
         <body>
           <div class="print-header">
-            <div class="print-title">${memo.title}</div>
+            <div class="print-title">${escapeHtml(memo.title)}</div>
             <div class="print-meta">
               Created: ${new Date(memo.createdAt).toLocaleString()}
-              ${memo.tags.length > 0 ? ` | Tags: ${memo.tags.join(', ')}` : ''}
+              ${memo.tags.length > 0 ? ` | Tags: ${memo.tags.map(escapeHtml).join(', ')}` : ''}
             </div>
           </div>
           ${element.innerHTML}
@@ -154,7 +155,7 @@ export const exportService = {
         case 'h4': case 'h5': case 'h6': return `#### ${children}\n\n`;
         case 'strong': case 'b': return `**${children}**`;
         case 'em': case 'i': return `*${children}*`;
-        case 'u': return `_${children}_`;
+        case 'u': return `<u>${children}</u>`;
         case 's': case 'del': return `~~${children}~~`;
         case 'code': return `\`${children}\``;
         case 'pre': return `\`\`\`\n${children}\n\`\`\`\n\n`;
@@ -167,7 +168,23 @@ export const exportService = {
         case 'a': return `[${children}](${el.getAttribute('href') ?? ''})`;
         case 'img': return `![${el.getAttribute('alt') ?? ''}](${el.getAttribute('src') ?? ''})`;
         case 'table': return `${children}\n`;
-        case 'tr': return `| ${children} |\n`;
+        case 'tr': {
+          const row = `| ${children} |\n`;
+          // Add GFM header separator row only after the first header row
+          const isHeaderRow = Array.from(el.children).every(
+            (child) => child.tagName.toLowerCase() === 'th',
+          );
+          if (isHeaderRow) {
+            // Guard against multiple header rows by checking for a preceding <tr>
+            const hasPrevTr = el.previousElementSibling?.tagName.toLowerCase() === 'tr';
+            if (!hasPrevTr) {
+              const colCount = el.children.length;
+              const separator = Array(colCount).fill('---').join(' | ');
+              return `${row}| ${separator} |\n`;
+            }
+          }
+          return row;
+        }
         case 'th': case 'td': return `${children} |`;
         default: return children;
       }

@@ -99,6 +99,13 @@ export default function EditorPane({ memo, onUpdate }: EditorPaneProps) {
     }
   }, [memo, editor]);
 
+  // Clean up pending save timer on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
   const handleTitleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newTitle = e.target.value;
@@ -134,8 +141,23 @@ export default function EditorPane({ memo, onUpdate }: EditorPaneProps) {
     if (type === 'image') {
       editor.chain().focus().setImage({ src: url }).run();
     } else {
-      // Insert as HTML for video
-      editor.chain().focus().insertContent(`<p><video controls style="max-width:100%;border-radius:8px"><source src="${url}"></video></p>`).run();
+      // Validate URL to prevent HTML injection (only allow http/https/data protocols)
+      let safeUrl: string;
+      try {
+        const parsed = new URL(url);
+        if (!['http:', 'https:', 'data:'].includes(parsed.protocol)) {
+          console.warn('Blocked non-http(s) video URL');
+          return;
+        }
+        safeUrl = parsed.href;
+      } catch {
+        console.warn('Invalid video URL');
+        return;
+      }
+      // Insert video only after URL is validated and sanitized
+      editor.chain().focus().insertContent(
+        `<p><video controls style="max-width:100%;border-radius:8px"><source src="${safeUrl}"></video></p>`
+      ).run();
     }
     setShowMediaUploader(false);
   };

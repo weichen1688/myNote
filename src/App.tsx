@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import Sidebar from './components/Sidebar/Sidebar';
 import EditorPane from './components/Editor/EditorPane';
 import AIChat from './components/AIChat/AIChat';
@@ -16,25 +16,27 @@ function App() {
     sidebarOpen: true,
     aiPanelOpen: false,
     graphPanelOpen: false,
-    searchQuery: '',
     view: 'editor',
   });
 
-  const [selectedMemo, setSelectedMemo] = useState<Memo | null>(null);
+  // Derive selectedMemo from selectedMemoId to eliminate dual source of truth
+  const selectedMemo = useMemo(
+    () => state.memos.find((m) => m.id === state.selectedMemoId) ?? null,
+    [state.memos, state.selectedMemoId],
+  );
 
   // Load memos on mount
   useEffect(() => {
     const memos = storageService.getAllMemos();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState((s) => ({ ...s, memos }));
-    if (memos.length > 0) {
-      setSelectedMemo(memos[0]);
-      setState((s) => ({ ...s, memos, selectedMemoId: memos[0].id }));
-    }
+    setState((s) => ({
+      ...s,
+      memos,
+      selectedMemoId: memos.length > 0 ? memos[0].id : null,
+    }));
   }, []);
 
   const handleSelectMemo = useCallback((memo: Memo) => {
-    setSelectedMemo(memo);
     setState((s) => ({ ...s, selectedMemoId: memo.id, view: 'editor' }));
   }, []);
 
@@ -50,30 +52,24 @@ function App() {
       selectedMemoId: newMemo.id,
       view: 'editor',
     }));
-    setSelectedMemo(newMemo);
   }, []);
 
   const handleUpdateMemo = useCallback((updates: Partial<Memo>) => {
     if (!selectedMemo) return;
-    const updated = storageService.updateMemo(selectedMemo.id, updates);
-    if (updated) {
-      setSelectedMemo(updated);
-      setState((s) => ({
-        ...s,
-        memos: storageService.getAllMemos(),
-      }));
-    }
+    storageService.updateMemo(selectedMemo.id, updates);
+    setState((s) => ({
+      ...s,
+      memos: storageService.getAllMemos(),
+    }));
   }, [selectedMemo]);
 
   const handleDeleteMemo = useCallback((id: string) => {
     storageService.deleteMemo(id);
     const memos = storageService.getAllMemos();
-    const nextMemo = memos.length > 0 ? memos[0] : null;
-    setSelectedMemo(nextMemo);
     setState((s) => ({
       ...s,
       memos,
-      selectedMemoId: nextMemo?.id ?? null,
+      selectedMemoId: memos.length > 0 ? memos[0].id : null,
     }));
   }, []);
 
