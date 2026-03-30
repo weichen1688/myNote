@@ -4,6 +4,25 @@ import type { Memo, Attachment } from '../types';
 const STORAGE_KEY = 'myNote_memos';
 const CONFIG_KEY = 'myNote_config';
 
+/**
+ * Wraps localStorage.setItem with QuotaExceededError handling.
+ * Alerts the user if storage is full so data loss is surfaced immediately.
+ */
+function safeSetItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
+      console.error('localStorage quota exceeded — data could not be saved.');
+      window.alert(
+        'Storage is full. Please export or delete some notes to free up space.',
+      );
+    } else {
+      throw err;
+    }
+  }
+}
+
 export const storageService = {
   getAllMemos(): Memo[] {
     try {
@@ -27,7 +46,7 @@ export const storageService = {
       const index = memos.findIndex((m) => m.id === memo.id);
       if (index >= 0) {
         memos[index] = { ...memos[index], ...memo, updatedAt: now };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(memos));
+        safeSetItem(STORAGE_KEY, JSON.stringify(memos));
         return memos[index];
       }
     }
@@ -45,13 +64,13 @@ export const storageService = {
     };
 
     memos.unshift(newMemo);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(memos));
+    safeSetItem(STORAGE_KEY, JSON.stringify(memos));
     return newMemo;
   },
 
   deleteMemo(id: string): void {
     const memos = this.getAllMemos().filter((m) => m.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(memos));
+    safeSetItem(STORAGE_KEY, JSON.stringify(memos));
   },
 
   updateMemo(id: string, updates: Partial<Memo>): Memo | null {
@@ -59,7 +78,7 @@ export const storageService = {
     const index = memos.findIndex((m) => m.id === id);
     if (index < 0) return null;
     memos[index] = { ...memos[index], ...updates, updatedAt: new Date().toISOString() };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(memos));
+    safeSetItem(STORAGE_KEY, JSON.stringify(memos));
     return memos[index];
   },
 
@@ -93,6 +112,6 @@ export const storageService = {
   setConfig(key: string, value: string): void {
     const config = this.getConfig();
     config[key] = value;
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+    safeSetItem(CONFIG_KEY, JSON.stringify(config));
   },
 };

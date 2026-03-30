@@ -44,15 +44,16 @@ export function buildGraphData(memos: Memo[]): GraphData {
     });
   });
 
-  // Shared-tag links
+  // Shared-tag links  — O(n²) with Set lookups instead of O(n²·k)
+  const tagSets = memos.map((m) => new Set(m.tags));
   for (let i = 0; i < memos.length; i++) {
     for (let j = i + 1; j < memos.length; j++) {
-      const sharedTags = memos[i].tags.filter((t) => memos[j].tags.includes(t));
-      if (sharedTags.length > 0) {
+      const sharedCount = [...tagSets[i]].filter((t) => tagSets[j].has(t)).length;
+      if (sharedCount > 0) {
         links.push({
           source: memos[i].id,
           target: memos[j].id,
-          strength: 0.3 * sharedTags.length,
+          strength: 0.3 * sharedCount,
         });
       }
     }

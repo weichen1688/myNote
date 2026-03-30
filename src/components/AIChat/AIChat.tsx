@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type { ChatMessage, Memo } from '../../types';
 import { aiService } from '../../services/ai';
 import { storageService } from '../../services/storage';
+import { escapeHtml } from '../../utils/htmlUtils';
 import SettingsModal from './SettingsModal';
 import './AIChat.css';
 
@@ -234,8 +235,8 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 function MessageText({ text }: { text: string }) {
-  // Simple markdown-like rendering
-  const rendered = text
+  // Escape HTML entities first to prevent XSS, then apply safe markdown-like rendering
+  const rendered = escapeHtml(text)
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`(.*?)`/g, '<code>$1</code>')

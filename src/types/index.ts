@@ -49,7 +49,6 @@ export interface AppState {
   sidebarOpen: boolean;
   aiPanelOpen: boolean;
   graphPanelOpen: boolean;
-  searchQuery: string;
   view: 'editor' | 'graph' | 'search';
 }
 
