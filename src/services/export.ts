@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import type { Memo } from '../types';
+import { escapeHtml } from '../utils/htmlUtils';
 
 export const exportService = {
   async exportToPDF(element: HTMLElement, memo: Memo): Promise<void> {
@@ -105,7 +106,7 @@ export const exportService = {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${memo.title}</title>
+          <title>${escapeHtml(memo.title)}</title>
           <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
           <style>
             ${styles}
@@ -118,10 +119,10 @@ export const exportService = {
         </head>
         <body>
           <div class="print-header">
-            <div class="print-title">${memo.title}</div>
+            <div class="print-title">${escapeHtml(memo.title)}</div>
             <div class="print-meta">
-              Created: ${new Date(memo.createdAt).toLocaleString()}
-              ${memo.tags.length > 0 ? ` | Tags: ${memo.tags.join(', ')}` : ''}
+              Created: ${escapeHtml(new Date(memo.createdAt).toLocaleString())}
+              ${memo.tags.length > 0 ? ` | Tags: ${escapeHtml(memo.tags.join(', '))}` : ''}
             </div>
           </div>
           ${element.innerHTML}
@@ -167,8 +168,8 @@ export const exportService = {
         case 'a': return `[${children}](${el.getAttribute('href') ?? ''})`;
         case 'img': return `![${el.getAttribute('alt') ?? ''}](${el.getAttribute('src') ?? ''})`;
         case 'table': return `${children}\n`;
-        case 'tr': return `| ${children} |\n`;
-        case 'th': case 'td': return `${children} |`;
+        case 'tr': return `|${children}\n`;
+        case 'th': case 'td': return ` ${children} |`;
         default: return children;
       }
     };
